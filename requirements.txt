@@ -1,0 +1,7 @@
+salt
+requests
+markdown
+taskflow
+docker-py
+libvirt-python
+
