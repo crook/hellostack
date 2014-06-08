@@ -11,14 +11,19 @@ But it is more than IaaS, it also includes PaaS and SaaS feature.
 HelloStack provides basic IaaS, PAAS and SaaS skeleton. It supports:
 
 * Data Center Infrastructure Management
-* Computer/Network/Storage Service
-* Linux Machine Management and Monior
+* Compute/Network/Storage Service
+* Linux Machine Management and Monior (HighLight)
 * LXC and Docker intergation
 * Virtual Appliance Marketplace
 
+Long-Term support:
+
+* High Availability Support (HighLight)
+* Qos
+
 
 ## Depoly and Develop
-TODO
+Easy Depoly
 
 
 ## Test
