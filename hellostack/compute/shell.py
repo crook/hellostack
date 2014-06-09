@@ -3,7 +3,7 @@
 import logging
 import time
 import sys
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 import salt.master
 import salt.config
@@ -68,23 +68,18 @@ class Shell(object):
     def exec_command(self):
         """dispatch command"""
 
-        if not isinstance(self.parser, OptionParser):
+        if not isinstance(self.parser, ArgumentParser):
             raise InvalidParam("Not parser found")
 
-        (options, args) = self.parser.parse_args()
-        self.mode = options.mode
+        self.args = self.parser.parse_args()
+        print self.args
 
-        # default print help message
-        subcommand = 'help'
-        if len(args):
-            subcommand = args[0]
-
-        if subcommand not in self.support_commands:
+        if self.args.opt not in self.support_commands:
             raise InvalidParam("Not support sub-command, see help")
 
         # dispatch command
         try:
-            func = getattr(self, "do_%s" %subcommand)
+            func = getattr(self, "do_%s" % self.args.opt)
             func()
         except Exception as err:
             log.error('call subcommand:{0} failed: {1}'.format(
@@ -100,14 +95,15 @@ class Shell(object):
         pass
 
     def do_vm(self):
-        if self.mode == 1:
+        mode = self.args.mode
+        if mode == 1:
             self.manager.create_vm()
-        elif self.mode == 2:
+        elif mode == 2:
             self.manager.update_vm()
-        elif self.mode == 3:
+        elif mode == 3:
             self.manager.delete_vm()
-        elif self.mode == 4:
-            self.manager.list_vm()
+        elif mode == 4:
+            self.manager.list_vm(vm=self.args.name)
         else:
             raise InvalidParam("Unkown vm mode")
 
@@ -124,39 +120,32 @@ class Shell(object):
 def option_parser():
 
     name = sys.argv[0]
-    usage="""
+    usage = """
     HelloStack Compute Service Shell
+    %s subcommand [options] [args]""" % (name)
 
-    %s subcommand [options] [args]
+    parser = ArgumentParser(usage=usage)
 
-    Available Sub-commands:
-        server
-        node
-        syncdb
-        image
-        favor
-        vm
-        net
-        stor
+    parser.add_argument('--version', action='version', version="1.0")
+    parser.add_argument('-n', '--name', dest='name', help="object name")
+    parser.add_argument('-i', '--id', dest='id', help="object ID")
+    parser.add_argument("-c", "--create", action="store_const",
+                        const=1, dest="mode", help="create object")
+    parser.add_argument("-e", "--edit", action="store_const",
+                        const=2, dest="mode", help="update object")
+    parser.add_argument("-d", "--delete", action="store_const",
+                        const=3, dest="mode", help="delete object")
+    parser.add_argument("-l", "--list", action="store_const",
+                        const=4, dest="mode", help="list one/all object")
 
-    List of image commands:
-        %s image [-c][-d][-l][-e] [args]
-
-        -l|--list    list images
-        -c|--create  create one image
-        -e|--edit    update one image
-        -d|--delete  delete one image""" %(name,name)
-
-    parser = OptionParser(usage=usage)
-
-    parser.add_option("-c", "--create", action="store_const",
-                      const=1, dest="mode", help="create object")
-    parser.add_option("-e", "--edit", action="store_const",
-                      const=2, dest="mode", help="update object")
-    parser.add_option("-d", "--delete", action="store_const",
-                      const=3, dest="mode", help="delete object")
-    parser.add_option("-l", "--list", action="store_const",
-                      const=4, dest="mode",help="list one/all object")
+    # import sub command group
+    subcommands = parser.add_subparsers(dest='opt',
+                                        title="available sub-commands")
+    vm_command = subcommands.add_parser('vm', help="VM operation")
+    image_command = subcommands.add_parser('image', help="Image operation")
+    favor_command = subcommands.add_parser('favor', help="Favor operation")
+    net_command = subcommands.add_parser('net', help="Network operation")
+    stor_command = subcommands.add_parser('stor', help="Storage operation")
 
     return parser
 

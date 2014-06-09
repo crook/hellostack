@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from pprint import pprint as pp
 
 import salt.client
 
@@ -34,28 +35,34 @@ class libvirtManager(Manager):
         self.caller = salt.client.Caller()
 
     def call(self, func, *args, **kwargs):
+        '''fall into salt module function'''
 
         log.debug("TODO: check salt minion is running")
         return self.caller.sminion.functions[func](*args, **kwargs)
 
-    def _print_vm(self, vmname, vminfo):
+    def _print_vm(self, vmname, vminfo, full=False):
         details = vminfo[vmname]
-        print("%-10s %-5s %-5s %-8s" % (vmname,
+        print("%-10s %-6s %-8s %-8s" % (vmname,
                                         details['cpu'],
                                         details['mem'],
                                         details['state']))
+        # dump details
+        if full:
+            print "\nVM Details"
+            pp(vminfo)
 
     def list_vm(self, vm=None):
 
         if vm:
             vminfo = self.call('virt.vm_info', vm)
-            print "name cpu mem state"
-            self._print_vm(vm, vminfo)
+            print "name      cpu   mem      state"
+            self._print_vm(vm, vminfo, full=True)
             return
 
         # list all vms in system
         self.vms = self.call('virt.list_vms')
-        print "name cpu mem state"
+        print "name      cpu   mem      state"
+        log.debug("TODO: add cache support, otherwise too slow")
         for vmname in self.vms:
             vminfo = self.call('virt.vm_info', vmname)
             self._print_vm(vmname, vminfo)

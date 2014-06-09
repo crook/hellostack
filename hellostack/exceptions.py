@@ -8,5 +8,6 @@ class InvalidParam(Exception):
 class ServiceFailture(Exception):
     pass
 
+
 class RunTimeFailture(Exception):
     pass
