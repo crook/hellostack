@@ -1,17 +1,62 @@
 # -*- coding: utf-8 -*-
 
+import os.path
 import logging
 from pprint import pprint as pp
 
 import salt.client
+import salt.config
+import salt.wheel
 
 log = logging.getLogger(__name__)
+
+
+class ImageService(object):
+    """Image Service simply on top of salt file server"""
+
+
+    def __init__(self, backend='file_roots'):
+
+        opts = salt.config.master_config('/etc/salt/master')
+        self.caller = salt.client.Caller()
+
+        # handle different storage backend
+        self.top_dir = opts['file_roots']['base'][0]
+
+    def _is_image(self, filepath):
+        '''Check whether this file is qemu image'''
+
+        log.debug("TODO: check qemu image")
+        if filepath.endswith('.img'):
+            return True
+        return False
+
+    def list_image(self, image=None):
+
+        ret = self.caller.function('cp.list_master')
+        print "filename      size(KB)"
+        for filename in ret:
+            file_path = os.path.join(self.top_dir, filename)
+            if self._is_image(file_path):
+                stat = self.caller.function('file.lstat', file_path)
+                print "%-10s %-6s" % (filename, stat['st_size'])
+
+        return
+
+    def create_image(self):
+        pass
+
+    def update_image(self):
+        pass
+
+    def delete_image(self, image):
+        pass
 
 
 class Manager(object):
     """Interface for VM"""
 
-    def list_vm(self):
+    def list_vm(self, vm=None):
         raise NotImplementedError()
 
     def create_vm(self):
@@ -20,16 +65,16 @@ class Manager(object):
     def update_vm(self):
         raise NotImplementedError()
 
-    def delete_vm(self):
+    def delete_vm(self, vm):
         raise NotImplementedError()
 
 
-class libvirtManager(Manager):
+class LibvirtManager(Manager):
     """Compute Service Manager using libvirt API"""
 
     def __init__(self):
 
-        super(libvirtManager, self).__init__()
+        super(LibvirtManager, self).__init__()
 
         self.local = salt.client.LocalClient()
         self.caller = salt.client.Caller()
@@ -73,10 +118,10 @@ class libvirtManager(Manager):
     def update_vm(self):
         raise NotImplementedError()
 
-    def delete_vm(self):
+    def delete_vm(self, vm):
         raise NotImplementedError()
 
 
-class vmwareManager(Manager):
+class VmwareManager(Manager):
     """Compute Service Manager for Vmware hypervior """
     pass

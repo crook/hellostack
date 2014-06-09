@@ -10,7 +10,8 @@ import salt.config
 from salt.utils.network import host_to_ip, get_fqhostname
 
 from hellostack.exceptions import *
-from hellostack.compute.manager import libvirtManager
+from hellostack.compute.manager import LibvirtManager
+from hellostack.compute.manager import ImageService
 from hellostack.utils import setup_logger
 
 log = logging.getLogger(__name__)
@@ -59,11 +60,21 @@ class Shell(object):
         'vm', 'net', 'stor',
     ]
 
+    # create/read/update/delete map
+    CRUD_MAP = {
+        1: 'create',
+        2: 'update',
+        3: 'delete',
+        4: 'list',
+        5: 'error',
+    }
+
     def __init__(self, parser):
         self.parser = parser
 
         log.debug("TODO: load more manager here")
-        self.manager = libvirtManager()
+        self.manager = LibvirtManager()
+        self.image = ImageService()
 
     def exec_command(self):
         """dispatch command"""
@@ -72,7 +83,7 @@ class Shell(object):
             raise InvalidParam("Not parser found")
 
         self.args = self.parser.parse_args()
-        print self.args
+        log.info("command arguemnt: %s" % self.args)
 
         if self.args.opt not in self.support_commands:
             raise InvalidParam("Not support sub-command, see help")
@@ -82,17 +93,26 @@ class Shell(object):
             func = getattr(self, "do_%s" % self.args.opt)
             func()
         except Exception as err:
-            log.error('call subcommand:{0} failed: {1}'.format(
-                subcommand, err)
+            log.error('call subcommand:{0} failed: {1!r}'.format(
+                self.args.opt, err)
             )
-            print err
+            print repr(err)
             raise RunTimeFailture("call do_func failture")
 
     def do_syncdb(self):
         pass
 
     def do_image(self):
-        pass
+        try:
+            name = "{0}_image".format(self.CRUD_MAP[self.args.mode])
+            function = getattr(self.image, name)
+            function()
+        except Exception as err:
+            log.error('call function:{0} failed: {1!r}'.format(
+                name, err)
+            )
+            print repr(err)
+            raise RunTimeFailture("call do_image failture")
 
     def do_vm(self):
         mode = self.args.mode
@@ -101,7 +121,7 @@ class Shell(object):
         elif mode == 2:
             self.manager.update_vm()
         elif mode == 3:
-            self.manager.delete_vm()
+            self.manager.delete_vm(vm=self.args.name)
         elif mode == 4:
             self.manager.list_vm(vm=self.args.name)
         else:
