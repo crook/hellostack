@@ -11,3 +11,7 @@ class ServiceFailture(Exception):
 
 class RunTimeFailture(Exception):
     pass
+
+
+class InvalidSession(Exception):
+    pass

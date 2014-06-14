@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import time
 import sys
 from argparse import ArgumentParser
 
+import salt.log
 import salt.master
 import salt.config
 from salt.utils.network import host_to_ip, get_fqhostname
@@ -12,9 +12,9 @@ from salt.utils.network import host_to_ip, get_fqhostname
 from hellostack.exceptions import *
 from hellostack.compute.manager import LibvirtManager
 from hellostack.compute.manager import ImageService
-from hellostack.utils import setup_logger
+from hellostack.compute.manager import FlavorService
 
-log = logging.getLogger(__name__)
+log = salt.log.setup.getLogger(__name__)
 
 
 def launch_all():
@@ -56,7 +56,7 @@ class Shell(object):
     """Shell command"""
 
     support_commands = [
-        'help', 'image', 'favor', 'syncdb',
+        'help', 'image', 'flavor', 'syncdb',
         'vm', 'net', 'stor',
     ]
 
@@ -75,6 +75,7 @@ class Shell(object):
         log.debug("TODO: load more manager here")
         self.manager = LibvirtManager()
         self.image = ImageService()
+        self.flavor = FlavorService()
 
     def exec_command(self):
         """dispatch command"""
@@ -83,7 +84,9 @@ class Shell(object):
             raise InvalidParam("Not parser found")
 
         self.args = self.parser.parse_args()
-        log.info("command arguemnt: %s" % self.args)
+        print self.args
+        salt.log.set_logger_level(__name__, self.args.log_level)
+        log.debug("command argument: %r" % self.args)
 
         if self.args.opt not in self.support_commands:
             raise InvalidParam("Not support sub-command, see help")
@@ -93,10 +96,9 @@ class Shell(object):
             func = getattr(self, "do_%s" % self.args.opt)
             func()
         except Exception as err:
-            log.error('call subcommand:{0} failed: {1!r}'.format(
+            log.error('call sub-command:{0} failed: {1!r}'.format(
                 self.args.opt, err)
             )
-            print repr(err)
             raise RunTimeFailture("call do_func failture")
 
     def do_syncdb(self):
@@ -108,16 +110,15 @@ class Shell(object):
             function = getattr(self.image, name)
             function()
         except Exception as err:
-            log.error('call function:{0} failed: {1!r}'.format(
+            log.error('call function{0} failed: {1!r}'.format(
                 name, err)
             )
-            print repr(err)
-            raise RunTimeFailture("call do_image failture")
+            raise RunTimeFailture("call do_image failure")
 
     def do_vm(self):
         mode = self.args.mode
         if mode == 1:
-            self.manager.create_vm()
+            self.manager.create_vm(favor)
         elif mode == 2:
             self.manager.update_vm()
         elif mode == 3:
@@ -125,10 +126,23 @@ class Shell(object):
         elif mode == 4:
             self.manager.list_vm(vm=self.args.name)
         else:
-            raise InvalidParam("Unkown vm mode")
+            raise InvalidParam("Unknown vm mode")
 
-    def do_favor(self):
-        pass
+    def do_flavor(self):
+        mode = self.args.mode
+        if mode == 1:
+            self.flavor.create(
+                self.args.name, self.args.vcpu,
+                self.args.ram, self.args.disk
+            )
+        elif mode == 2:
+            self.flavor.update()
+        elif mode == 3:
+            self.flavor.delete(vm=self.args.name)
+        elif mode == 4:
+            self.flavor.list(name=self.args.name)
+        else:
+            raise InvalidParam("Unknown vm mode")
 
     def do_net(self):
         pass
@@ -142,7 +156,7 @@ def option_parser():
     name = sys.argv[0]
     usage = """
     HelloStack Compute Service Shell
-    %s subcommand [options] [args]""" % (name)
+    %s sub-command [options] [args]""" % (name)
 
     parser = ArgumentParser(usage=usage)
 
@@ -158,12 +172,24 @@ def option_parser():
     parser.add_argument("-l", "--list", action="store_const",
                         const=4, dest="mode", help="list one/all object")
 
+    parser.add_argument(
+        "--log-level", default="info",
+        choices=salt.log.LOG_LEVELS.keys(),
+        help='Console log level. One of %s. For the logfile settings '
+             'see the config file. Default: info' %
+             ', '.join([repr(l) for l in salt.log.LOG_LEVELS.keys()]))
+
     # import sub command group
     subcommands = parser.add_subparsers(dest='opt',
                                         title="available sub-commands")
     vm_command = subcommands.add_parser('vm', help="VM operation")
     image_command = subcommands.add_parser('image', help="Image operation")
-    favor_command = subcommands.add_parser('favor', help="Favor operation")
+
+    favor_command = subcommands.add_parser('flavor', help="Flavor operation")
+    favor_command.add_argument("vcpu", help="Number of vcpus")
+    favor_command.add_argument("ram", help="Memory size in MB")
+    favor_command.add_argument("disk", help="Disk size in GB")
+
     net_command = subcommands.add_parser('net', help="Network operation")
     stor_command = subcommands.add_parser('stor', help="Storage operation")
 
@@ -179,7 +205,7 @@ def main():
         hs-computer --server|--node|--all
     """
 
-    # setup_logger("computer.log")
+    salt.log.setup_console_logger()
 
     parser = option_parser()
     shell = Shell(parser)
@@ -187,15 +213,14 @@ def main():
     try:
         shell.exec_command()
     except Exception as err:
-        log.debug("shell command failed: {0}".format(
+        log.error("shell command failed: {0!r}".format(
             err)
         )
-        print err
     except KeyboardInterrupt:
         raise SystemExit('\nExiting gracefully on Ctrl-c')
     finally:
         # TODO: need cleanup
-        log.debug("TODO cleanup work")
+        log.trace("TODO cleanup work")
 
     return
 

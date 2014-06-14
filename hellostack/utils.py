@@ -5,12 +5,12 @@ import logging
 
 def setup_logger(filename, level=logging.INFO):
     # set up logging to file - see previous section for more details
-    # logging.basicConfig(
-    #    level=logging.DEBUG,
-    #  format='%(asctime)s %(name)-8s %(lineno)d %(levelname)-8s %(message)s',
-    #    datefmt='%m-%d %H:%M',
-    #    filename=filename,
-    #    filemode='w+')
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(name)-8s %(lineno)d %(levelname)-8s %(message)s',
+        datefmt='%m-%d %H:%M',
+        filename=filename,
+        filemode='w+')
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
